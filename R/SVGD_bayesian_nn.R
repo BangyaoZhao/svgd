@@ -13,10 +13,16 @@
 #' @param num_nodes The number of nodes in each hidden layer.
 #' @param a0 a0.
 #' @param b0 b0.
-#' @param master_stepsize master stepsize.
-#' @param auto_corr auto corr.
-#' @param method method.
-#' @return A list containning.
+#' @param master_stepsize The master stepsize.
+#' @param auto_corr The auto correlation.
+#' @param method The optimization method to be used.
+#' @return A list containing:
+#' \itemize{
+#'   \item{theta: }{The estimated parameters in the vector format.}
+#'   \item{scaling_coef: }{The scaling coefficient}
+#'   \item{svgd_rmse: }{The RMSE on the training data}
+#'   \item{svgd_11: }{svgd_11}
+#' }
 #' @examples
 #' library(MASS)
 #' df = Boston

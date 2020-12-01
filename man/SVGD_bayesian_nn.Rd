@@ -41,14 +41,20 @@ SVGD_bayesian_nn(
 
 \item{b0}{b0.}
 
-\item{master_stepsize}{master stepsize.}
+\item{master_stepsize}{The master stepsize.}
 
-\item{auto_corr}{auto corr.}
+\item{auto_corr}{The auto correlation.}
 
-\item{method}{method.}
+\item{method}{The optimization method to be used.}
 }
 \value{
-A list containning.
+A list containing:
+\itemize{
+  \item{theta: }{The estimated parameters in the vector format.}
+  \item{scaling_coef: }{The scaling coefficient}
+  \item{svgd_rmse: }{The RMSE on the training data}
+  \item{svgd_11: }{svgd_11}
+}
 }
 \description{
 Main Function

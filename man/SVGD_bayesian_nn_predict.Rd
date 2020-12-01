@@ -16,7 +16,7 @@ SVGD_bayesian_nn_predict(X, theta, num_nodes, scaling_coef)
 \item{scaling_coef}{scaling coef.}
 }
 \value{
-A vector.
+A vector of predicted outcomes.
 }
 \description{
 Prediction Function

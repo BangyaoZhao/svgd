@@ -22,7 +22,7 @@
 #'   method = 'adagrad'
 #' )
 #' y_hat = SVGD_bayesian_nn_predict(X, SVGD$theta, c(50), SVGD$scaling_coef)
-#' @return A vector.
+#' @return A vector of predicted outcomes.
 #' @export
 
 SVGD_bayesian_nn_predict <- function(X, theta, num_nodes, scaling_coef) {
