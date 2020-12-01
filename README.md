@@ -5,7 +5,7 @@
 
 Install our `svgd` package from github:
 ```
-devtools::install_github("BangyaoZhao/linear.svgd")
+devtools::install_github("BangyaoZhao/svgd")
 ```
 
 Load package by:
