@@ -38,4 +38,5 @@ SVGD = SVGD_bayesian_nn(
   master_stepsize = 1e-3,
   method = 'adagrad'
 )
+y_hat = SVGD_bayesian_nn_predict(X, SVGD$theta, c(50), SVGD$scaling_coef)
 }

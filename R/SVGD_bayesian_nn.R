@@ -5,8 +5,8 @@
 #'
 #' @param X_train The training dataset variables, a matrix with rows representing observations and columns representing covariates.
 #' @param y_train The training dataset outcomes, a vector with the length same as the number of rows of `X_train`.
-#' @param X_test The testing data set variables, a matrix with the same number of columns as `X_train`, can be `NULL`.
-#' @param y_test The testing dataset outcomes, a vector with the length same as the number of rows of `X_test`, can be `NULL`.
+#' @param X_test The testing data set variables, a matrix with the same number of columns as `X_train`.
+#' @param y_test The testing dataset outcomes, a vector with the length same as the number of rows of `X_test`.
 #' @param batch_size The batch size.
 #' @param max_iter The maximum number of iterations.
 #' @param M The number of particles.
@@ -34,7 +34,6 @@
 #'   master_stepsize = 1e-3,
 #'   method = 'adagrad'
 #' )
-#' y_hat = SVGD_bayesian_nn_predict(X, SVGD$theta, c(50), SVGD$scaling_coef)
 #' @importFrom stats dist median rgamma rnorm
 #' @importFrom utils tail
 #' @export

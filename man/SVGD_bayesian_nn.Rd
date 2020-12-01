@@ -25,9 +25,9 @@ SVGD_bayesian_nn(
 
 \item{y_train}{The training dataset outcomes, a vector with the length same as the number of rows of `X_train`.}
 
-\item{X_test}{The testing data set variables, a matrix with the same number of columns as `X_train`, can be `NULL`.}
+\item{X_test}{The testing data set variables, a matrix with the same number of columns as `X_train`.}
 
-\item{y_test}{The testing dataset outcomes, a vector with the length same as the number of rows of `X_test`, can be `NULL`.}
+\item{y_test}{The testing dataset outcomes, a vector with the length same as the number of rows of `X_test`.}
 
 \item{batch_size}{The batch size.}
 
@@ -70,5 +70,4 @@ SVGD = SVGD_bayesian_nn(
   master_stepsize = 1e-3,
   method = 'adagrad'
 )
-y_hat = SVGD_bayesian_nn_predict(X, SVGD$theta, c(50), SVGD$scaling_coef)
 }
