@@ -1,0 +1,18 @@
+Package: svgd
+Type: Package
+Title: SVGD for Bayesian Neural Network
+Version: 0.1.0
+Authors@R: c(
+    person(given = "Bangyao", family = "Zhao", role = c("aut", "cre"), email = "byzhao@umich.edu"),
+    person(given = "Guoxuan", family = "Ma", role = c("aut"), email = "gxma@umich.edu"),
+    person(given = "Hasan", family = "Abu-Amara", role = c("aut"), email = "hhabua@umich.edu"))
+Maintainer: Bangyao Zhao <byzhao@umich.edu>
+Description: Stein Variational Gradient Descent (svgd) is a General Purpose Bayesian Inference Algorithm. In this package, we use svgd to implement a Bayesian Neural Network. 
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    stats,
+    utils,
+    MASS
+RoxygenNote: 7.1.1
