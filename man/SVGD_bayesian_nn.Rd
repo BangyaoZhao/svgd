@@ -35,15 +35,15 @@ SVGD_bayesian_nn(
 
 \item{M}{The number of particles.}
 
-\item{num_nodes}{The number of nodes in each hidden layer.}
+\item{num_nodes}{The number of nodes in each hidden layer (does not include the last layer, because the node in the last layer is always 1).}
 
-\item{a0}{a0.}
+\item{a0}{a0, for the prior distribution of lambda and gamma.}
 
-\item{b0}{b0.}
+\item{b0}{b0, for the prior distribution of lambda and gamma.}
 
-\item{master_stepsize}{The master stepsize.}
+\item{master_stepsize}{The master stepsize, which is needed to adjust convergence if using adagrad for optimization of the NN.}
 
-\item{auto_corr}{The auto correlation.}
+\item{auto_corr}{The auto correlation, which is needed to adjust convergence if using adagrad for optimization of the NN.}
 
 \item{method}{The optimization method to be used.}
 }
@@ -53,7 +53,7 @@ A list containing:
   \item{theta: }{The estimated parameters in the vector format.}
   \item{scaling_coef: }{The scaling coefficient}
   \item{svgd_rmse: }{The RMSE on the training data}
-  \item{svgd_11: }{svgd_11}
+  \item{svgd_11: }{log likelihood}
 }
 }
 \description{

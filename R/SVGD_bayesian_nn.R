@@ -10,18 +10,18 @@
 #' @param batch_size The batch size.
 #' @param max_iter The maximum number of iterations.
 #' @param M The number of particles.
-#' @param num_nodes The number of nodes in each hidden layer.
-#' @param a0 a0.
-#' @param b0 b0.
-#' @param master_stepsize The master stepsize.
-#' @param auto_corr The auto correlation.
+#' @param num_nodes The number of nodes in each hidden layer (does not include the last layer, because the node in the last layer is always 1).
+#' @param a0 a0, for the prior distribution of lambda and gamma.
+#' @param b0 b0, for the prior distribution of lambda and gamma.
+#' @param master_stepsize The master stepsize, which is needed to adjust convergence if using adagrad for optimization of the NN.
+#' @param auto_corr The auto correlation, which is needed to adjust convergence if using adagrad for optimization of the NN.
 #' @param method The optimization method to be used.
 #' @return A list containing:
 #' \itemize{
 #'   \item{theta: }{The estimated parameters in the vector format.}
 #'   \item{scaling_coef: }{The scaling coefficient}
 #'   \item{svgd_rmse: }{The RMSE on the training data}
-#'   \item{svgd_11: }{svgd_11}
+#'   \item{svgd_11: }{log likelihood}
 #' }
 #' @examples
 #' library(MASS)
