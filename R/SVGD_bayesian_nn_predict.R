@@ -6,7 +6,6 @@
 #' @param scaling_coef scaling coef.
 #' @examples
 #' library(MASS)
-#' df = Boston
 #' X = as.matrix(Boston[, 1:13])
 #' y = Boston$medv
 #' SVGD = SVGD_bayesian_nn(
