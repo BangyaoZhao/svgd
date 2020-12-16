@@ -27,6 +27,13 @@ identity_backward <- function(dZ, cache) {
   return(dA)
 }
 
+log_posterior_backward <- function(ZL, Y, parameters, N) {
+  N0 <- length(Y)
+  loggamma <- parameters$loggamma
+  dA <- exp(loggamma) * (Y - ZL) * N / N0
+  return(dA)
+}
+
 ##########################################
 ##      Forward Propagation Module      ##
 ##########################################
@@ -35,13 +42,6 @@ linear_forward <- function(Z, W, b) {
   A <- W %*% Z + b
   cache <- list(Z = Z, W = W, b = b)
   return(list(A = A, cache = cache))
-}
-
-log_posterior_backward <- function(ZL, Y, parameters, N) {
-  N0 <- length(Y)
-  loggamma <- parameters$loggamma
-  dA <- exp(loggamma) * (Y - ZL) * N / N0
-  return(dA)
 }
 
 one_step_forward <- function(Z_prev, W, b, activation = 'relu') {

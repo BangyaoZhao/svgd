@@ -72,7 +72,7 @@ SVGD_bayesian_nn <-
     X_train <- X_train[(1:(n_data - size_dev)),]
     y_train <- y_train[(1:(n_data - size_dev))]
 
-    # # Normalize the data set
+    # Normalize the data set
     X_train <- scale(X_train)
     y_train <- scale(y_train)
     mean_X_train <- attr(X_train, 'scaled:center')
@@ -88,6 +88,14 @@ SVGD_bayesian_nn <-
     theta <- matrix(rep(0, num_vars * M), nrow = M)
     for (i in 1:M) {
       theta_i <- initialization(d, num_nodes, a0, b0)
+
+      # A better initialization for gamma
+      ridx <- sample(N0, min(N0, 1000), replace = F)
+      y_hat <-
+        c(forward_probagation(t(X_train[ridx,]), theta_i, 'relu')$ZL)
+      loggamma <- -log(mean((y_hat - y_train[ridx]) ^ 2))
+      theta_i$loggamma <- loggamma
+
       theta[i,] <- pack_parameters(theta_i)
     }
 
@@ -111,6 +119,7 @@ SVGD_bayesian_nn <-
         method
       )
 
+
     X_dev <-
       t(apply(X_dev, 1, function(x) {
         (x - mean_X_train) / sd_X_train
@@ -133,6 +142,7 @@ SVGD_bayesian_nn <-
         theta[i,] <- pack_parameters(para_list)
       }
     }
+
     if (!is.null(X_test)) {
       metrics <-
         evaluation(X_test, y_test, theta, num_nodes, scaling_coef)
