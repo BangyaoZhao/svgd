@@ -27,12 +27,13 @@ identity_backward <- function(dZ, cache) {
   return(dA)
 }
 
-log_posterior_backward <- function(ZL, Y, parameters, N) {
-  N0 <- length(Y)
-  loggamma <- parameters$loggamma
-  dA <- exp(loggamma) * (Y - ZL) * N / N0
-  return(dA)
-}
+log_posterior_backward <-
+  function(ZL, Y, eigenMat_inv, parameters, N) {
+    N0 <- length(Y)
+    loggamma <- parameters$loggamma
+    dA <- exp(loggamma) * eigenMat_inv %*% (Y - ZL) * N / N0
+    return(dA)
+  }
 
 ##########################################
 ##      Forward Propagation Module      ##
@@ -110,14 +111,15 @@ one_step_backward <-
            N = NULL,
            parameters = NULL,
            Y = NULL,
-           ZL = NULL) {
+           ZL = NULL,
+           eigenMat_inv = NULL) {
     linear_cache <- cache$linear_cache
     activation_cache <- cache$activation_cache
 
     if (activation == 'relu') {
       dA <- relu_backward(dZ, activation_cache)
     } else {
-      dA <- log_posterior_backward(ZL, Y, parameters, N)
+      dA <- log_posterior_backward(ZL, Y, eigenMat_inv, parameters, N)
     }
 
     tmp <- linear_backward(dA, linear_cache)
@@ -128,88 +130,96 @@ one_step_backward <-
     return(list(dZ_prev = dZ_prev, dW = dW, db = db))
   }
 
-backward_probagation <- function(ZL, Y, caches, parameters, N) {
-  grads <- list()
-  L <- (length(parameters) - 2) / 2
-  N <- dim(ZL)[2]
+backward_probagation <-
+  function(ZL, Y, eigenMat_inv, caches, parameters, N) {
+    grads <- list()
+    L <- (length(parameters) - 2) / 2
+    N <- dim(ZL)[2]
 
-  current_cache <- caches[[sprintf('L%s', L)]]
-  tmp1 <-
-    one_step_backward(
-      cache = current_cache,
-      activation = 'identity',
-      Y = Y,
-      ZL = ZL,
-      parameters = parameters,
-      N = N,
-      dZ = NULL
-    )
-  grads[[sprintf('dZ%s', L - 1)]] <- tmp1$dZ_prev
-  grads[[sprintf('dW%s', L)]] <- tmp1$dW
-  grads[[sprintf('db%s', L)]] <- tmp1$db
+    current_cache <- caches[[sprintf('L%s', L)]]
+    tmp1 <-
+      one_step_backward(
+        cache = current_cache,
+        activation = 'identity',
+        Y = Y,
+        ZL = ZL,
+        eigenMat_inv = eigenMat_inv,
+        parameters = parameters,
+        N = N,
+        dZ = NULL
+      )
+    grads[[sprintf('dZ%s', L - 1)]] <- tmp1$dZ_prev
+    grads[[sprintf('dW%s', L)]] <- tmp1$dW
+    grads[[sprintf('db%s', L)]] <- tmp1$db
 
-  for (l in (L - 1):1) {
-    current_cache <- caches[[sprintf('L%s', l)]]
-    tmp2 <-
-      one_step_backward(dZ = grads[[sprintf('dZ%s', l)]],
-                        cache = current_cache,
-                        activation = 'relu')
-    grads[[sprintf('dZ%s', l - 1)]] <- tmp2$dZ_prev
-    grads[[sprintf('dW%s', l)]] <- tmp2$dW
-    grads[[sprintf('db%s', l)]] <- tmp2$db
+    for (l in (L - 1):1) {
+      current_cache <- caches[[sprintf('L%s', l)]]
+      tmp2 <-
+        one_step_backward(dZ = grads[[sprintf('dZ%s', l)]],
+                          cache = current_cache,
+                          activation = 'relu')
+      grads[[sprintf('dZ%s', l - 1)]] <- tmp2$dZ_prev
+      grads[[sprintf('dW%s', l)]] <- tmp2$dW
+      grads[[sprintf('db%s', l)]] <- tmp2$db
+    }
+
+    return(grads)
   }
-
-  return(grads)
-}
 
 ##########################################
 ##           Compute Gradients          ##
 ##########################################
 
-gradient <- function(X_batch, y_batch, parameters, N, a0, b0) {
-  N0 <- dim(X_batch)[2]
-  L <- (length(parameters) - 2) / 2
-  y_batch <- matrix(y_batch, nrow = 1)
+gradient <-
+  function(X_batch,
+           y_batch,
+           eigenMat_inv,
+           parameters,
+           N,
+           a0,
+           b0) {
+    N0 <- dim(X_batch)[2]
+    L <- (length(parameters) - 2) / 2
 
-  para_vector <- pack_parameters(parameters)
-  num_vars <- length(para_vector)
+    para_vector <- pack_parameters(parameters)
+    num_vars <- length(para_vector)
 
-  tmp = forward_probagation(X_batch, parameters, activation = 'relu')
-  ZL <- tmp$ZL
-  caches <- tmp$caches
+    tmp = forward_probagation(X_batch, parameters, activation = 'relu')
+    ZL <- tmp$ZL
+    caches <- tmp$caches
 
-  raw_grads <-
-    backward_probagation(ZL, y_batch, caches, parameters, N)
+    raw_grads <-
+      backward_probagation(ZL, y_batch, eigenMat_inv, caches, parameters, N)
 
-  sum_of_square = 0
+    sum_of_square = 0
 
-  for (l in 1:L) {
-    sum_of_square = sum_of_square + sum(parameters[[sprintf('W%s', l)]] ^ 2) + sum(parameters[[sprintf('b%s', l)]] ^
-                                                                                     2)
+    for (l in 1:L) {
+      sum_of_square = sum_of_square + sum(parameters[[sprintf('W%s', l)]] ^ 2) + sum(parameters[[sprintf('b%s', l)]] ^
+                                                                                       2)
+    }
+
+    loggamma <- parameters$loggamma
+    d_loggamma <-
+      (N0 / 2 - exp(loggamma) / 2 * sum((ZL - y_batch) ^ 2)) * N / N0 + (a0 - 1) - b0 * exp(loggamma) + 1
+
+    loglambda <- parameters$loglambda
+    d_loglambda <-
+      (num_vars - 2) / 2 - exp(loglambda) * sum_of_square / 2 + (a0 - 1) - b0 * exp(loglambda) + 1
+
+    grads <- list()
+    for (l in 1:L) {
+      grads[[sprintf('W%s', l)]] <-
+        raw_grads[[sprintf('dW%s', l)]] - exp(loglambda) * parameters[[sprintf('W%s', l)]]
+      grads[[sprintf('b%s', l)]] <-
+        raw_grads[[sprintf('db%s', l)]] - exp(loglambda) * parameters[[sprintf('b%s', l)]]
+    }
+
+    grads$loggamma <- d_loggamma
+    grads$loglambda <- d_loglambda
+
+    d_para_vector <- pack_parameters(grads)
+    return(d_para_vector)
   }
-
-  loggamma <- parameters$loggamma
-  d_loggamma <-
-    (N0 / 2 - exp(loggamma) / 2 * sum((ZL - y_batch) ^ 2)) * N / N0 + (a0 - 1) - b0 * exp(loggamma) + 1
-
-  loglambda <- parameters$loglambda
-  d_loglambda <-
-    (num_vars - 2) / 2 - exp(loglambda) * sum_of_square / 2 + (a0 - 1) - b0 * exp(loglambda) + 1
-
-  grads <- list()
-  for (l in 1:L) {
-    grads[[sprintf('W%s', l)]] <-
-      raw_grads[[sprintf('dW%s', l)]] - exp(loglambda) * parameters[[sprintf('W%s', l)]]
-    grads[[sprintf('b%s', l)]] <-
-      raw_grads[[sprintf('db%s', l)]] - exp(loglambda) * parameters[[sprintf('b%s', l)]]
-  }
-
-  grads$loggamma <- d_loggamma
-  grads$loglambda <- d_loglambda
-
-  d_para_vector <- pack_parameters(grads)
-  return(d_para_vector)
-}
 
 ##########################################
 ##        SVGD Utility Functions        ##
@@ -240,9 +250,8 @@ svgd_kernel <- function(theta, h = -1) {
 
 parameter_cumsum <- function(d, num_nodes) {
   # d: integer, number of features in X
-  # num_nodes: vector of integers, number of nodes in each hidden layer (excluding the output layer)
+  # num_nodes: vector of integers, number of nodes in each hidden layer
   num_of_para <- c()
-  num_nodes <- c(num_nodes, 1)
   for (i in 1:length(num_nodes)) {
     if (i == 1) {
       num_of_para <-
@@ -273,8 +282,7 @@ unpack_parameters <- function(para_vector, d, num_nodes) {
   # weigth matrix has the shape n_l by n_(l-1)
   para_cumsum <- parameter_cumsum(d, num_nodes)$para_cumsum
   para_cumsum <- c(0, para_cumsum)
-  num_layers <- (length(para_cumsum) - 3) / 2
-  num_nodes <- c(d, num_nodes, 1)
+  num_layers <- length(num_nodes)
   para_list <- list()
   for (i in 1:(2 * num_layers)) {
     if (i %% 2 == 1) {
@@ -282,7 +290,7 @@ unpack_parameters <- function(para_vector, d, num_nodes) {
       end <- para_cumsum[i + 1]
       layer <- ceiling(i / 2)
       para_list[[sprintf('W%s', layer)]] <-
-        matrix(para_vector[begin:end], nrow = num_nodes[layer + 1])
+        matrix(para_vector[begin:end], nrow = num_nodes[layer])
     } else {
       begin <- para_cumsum[i] + 1
       end <- para_cumsum[i + 1]
@@ -298,12 +306,11 @@ unpack_parameters <- function(para_vector, d, num_nodes) {
 initialization <- function(d, num_nodes, a0, b0) {
   # parameter initialization
   # d: integer, number of features in X
-  # num_nodes: vector of integers, number of nodes in hidden layers (excluding output layer)
+  # num_nodes: vector of integers, number of nodes in hidden layers
   # a0, b0: shape and scale parameters in gamma distribution, respectively
   # In this function, we use Xavier initialization for weights in the neural network;
   # bias terms are set to be 0; gamma and lambda are drawn from the prior Gamma(a0, b0)
   num_of_para <- parameter_cumsum(d, num_nodes)$num_of_para
-  num_nodes <- c(num_nodes, 1)
   num_layers <- length(num_nodes)
   para_list <- list()
 
@@ -331,6 +338,7 @@ initialization <- function(d, num_nodes, a0, b0) {
 optimizer <-
   function(X_train,
            y_train,
+           eigenMat_inv,
            master_stepsize,
            auto_corr,
            max_iter,
@@ -364,7 +372,7 @@ optimizer <-
       for (j in 1:M) {
         para_list <- unpack_parameters(theta[j,], d, num_nodes)
         grad_theta[j,] <-
-          gradient(t(X_train[batch,]), y_train[batch], para_list, N0, a0, b0)
+          gradient(t(X_train[batch,]), y_train[, batch], eigenMat_inv, para_list, N0, a0, b0)
       }
 
       # Calculate the kernel matrix
@@ -407,6 +415,7 @@ optimizer <-
 evaluation <-
   function(X_test,
            y_test,
+           eigenMat,
            theta,
            num_nodes,
            scaling_coef) {
@@ -415,6 +424,11 @@ evaluation <-
     sd_X_train <- scaling_coef[[2]]
     mean_y_train <- scaling_coef[[3]]
     sd_y_train <- scaling_coef[[4]]
+    y_test <- t(y_test)
+
+    output_dim <- dim(y_test)[1]
+    det_eigenMat <- cumprod(diag(eigenMat))[output_dim]
+    inv_eigenMat <- diag(1 / diag(eigenMat))
 
     X_test <-
       t(apply(X_test, 1, function(x) {
@@ -423,25 +437,22 @@ evaluation <-
 
     d <- ncol(X_test)
 
-    pred_y_test <-
-      matrix(rep(0, times = M * length(y_test)),
-             nrow = M,
-             ncol = length(y_test))
+    pred_y_test <- array(0, dim = c(M, output_dim, dim(y_test)[2]))
     prob <-
       matrix(rep(0, times = M * length(y_test)),
              nrow = M,
-             ncol = length(y_test))
+             ncol = dim(X_test)[1])
 
     for (i in 1:M) {
       para_list <- unpack_parameters(theta[i,], d, num_nodes)
       loggamma <- para_list$loggamma
-      pred_y_test[i,] <-
+      pred_y_test[i, ,] <-
         forward_probagation(t(X_test), para_list, 'relu')$ZL * sd_y_train + mean_y_train
       prob[i,] <-
-        sqrt(exp(loggamma)) / sqrt(2 * pi) * exp(-1 * (pred_y_test[i,] - y_test) ^
-                                                   2 * exp(loggamma) / 2)
+        sqrt(exp(loggamma)) / ((2 * pi) ^ (output_dim / 2) * sqrt(det_eigenMat)) * exp(-exp(loggamma) / 2 * colSums((pred_y_test[i, ,] - y_test) ^
+                                                                                                                      2 * diag(inv_eigenMat)))
     }
-    pred <- colMeans(pred_y_test)
+    pred <- apply(pred_y_test, c(2, 3), mean)
 
     svgd_rmse <- sqrt(mean((pred - y_test) ^ 2))
     svgd_11 <- mean(log(colMeans(prob)))

@@ -21,22 +21,3 @@ A vector of predicted outcomes.
 \description{
 Prediction Function
 }
-\examples{
-library(MASS)
-df = Boston
-X = as.matrix(Boston[, 1:13])
-y = Boston$medv
-SVGD = SVGD_bayesian_nn(
-  X_train = X,
-  y_train = y,
-  X_test = X,
-  y_test = y,
-  M = 20,
-  batch_size = 100,
-  max_iter = 100,
-  num_nodes = c(50),
-  master_stepsize = 1e-3,
-  method = 'adagrad'
-)
-y_hat = SVGD_bayesian_nn_predict(X, SVGD$theta, c(50), SVGD$scaling_coef)
-}

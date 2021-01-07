@@ -7,12 +7,13 @@
 SVGD_bayesian_nn(
   X_train,
   y_train,
+  eigenMat = diag(dim(y_train)[2]),
   X_test = NULL,
   y_test = NULL,
   batch_size = 100,
   max_iter = 1000,
   M = 20,
-  num_nodes = c(20),
+  num_nodes = c(20, 1),
   a0 = 1,
   b0 = 0.1,
   master_stepsize = 0.001,
@@ -24,6 +25,8 @@ SVGD_bayesian_nn(
 \item{X_train}{The training dataset variables, a matrix with rows representing observations and columns representing covariates.}
 
 \item{y_train}{The training dataset outcomes, a vector with the length same as the number of rows of `X_train`.}
+
+\item{eigenMat}{the variance matrix of the outcome}
 
 \item{X_test}{The testing data set variables, a matrix with the same number of columns as `X_train`.}
 
@@ -58,22 +61,4 @@ A list containing:
 }
 \description{
 Main Function
-}
-\examples{
-library(MASS)
-df = Boston
-X = as.matrix(Boston[, 1:13])
-y = Boston$medv
-SVGD = SVGD_bayesian_nn(
-  X_train = X,
-  y_train = y,
-  X_test = X,
-  y_test = y,
-  M = 20,
-  batch_size = 100,
-  max_iter = 100,
-  num_nodes = c(50),
-  master_stepsize = 1e-3,
-  method = 'adagrad'
-)
 }
