@@ -119,11 +119,10 @@ SVGD_bayesian_nn <-
     f_log_lk <- function(loggamma) {
       output_dim <- dim(y_train)[1]
       det_eigenMat <- cumprod(diag(eigenMat))[output_dim]
-      #cat(sqrt(exp(loggamma)) / ((2 * pi)^(output_dim/2)*sqrt(det_eigenMat)) * exp(- exp(loggamma) / 2 * colSums((pred_y_dev - y_dev)^2 * diag(eigenMat_inv))), '\n')
-      return(sum(log(
-        sqrt(exp(loggamma)) / ((2 * pi) ^ (output_dim / 2) * sqrt(det_eigenMat)) * exp(-exp(loggamma) / 2 * colSums((pred_y_dev - y_dev) ^
-                                                                                                                      2 * diag(eigenMat_inv)
-        ))
+      return(sum(log((exp(loggamma) ^ (output_dim / 2)) / ((2 * pi) ^ (output_dim /
+                                                                         2) * sqrt(det_eigenMat)) * exp(-exp(loggamma) / 2 * colSums((pred_y_dev - y_dev) ^
+                                                                                                                                       2 * diag(eigenMat_inv)
+                                                                         ))
       )))
     }
     for (i in 1:M) {
