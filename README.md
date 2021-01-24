@@ -35,8 +35,13 @@ SVGD = SVGD_bayesian_nn(
   max_iter = 2000,
   num_nodes = c(50, 2),
   master_stepsize = 1e-3,
-  method = 'adagrad'
+  method = 'adagrad',
+  gradient_method = 'Rbase'
 )
+# Another option is gradient_method = 'autodiffr'
+# You need the following code to setup the autodiffr
+# library(autodiffr)
+# ad_setup(JULIA_HOME = "the file folder contains the julia binary")
 y_hat = SVGD_bayesian_nn_predict(X, SVGD$theta, c(50, 2), SVGD$scaling_coef)
 
 

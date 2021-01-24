@@ -42,7 +42,8 @@ SVGD_bayesian_nn <-
            b0 = 0.1,
            master_stepsize = 1e-3,
            auto_corr = 0.9,
-           method = 'adam') {
+           method = 'adam',
+           gradient_method='Rbase') {
     n_layers <- length(num_nodes) + 1
     d <- ncol(X_train)
     n_data <- nrow(X_train)
@@ -106,7 +107,8 @@ SVGD_bayesian_nn <-
         theta,
         a0,
         b0,
-        method
+        method,
+        gradient_method
       )
 
     # Tuning for a better gamma
