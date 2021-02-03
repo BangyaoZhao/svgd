@@ -218,9 +218,10 @@ gradient <-
     return(d_para_vector)
   }
 
-gradient_fun <-
+gradient_auto <-
   function(X_batch,
            y_batch,
+           theta_mat,
            eigenMat_inv,
            parameters,
            N,
@@ -259,7 +260,7 @@ gradient_fun <-
           array(theta[rep(first[2 * i]:last[2 * i], N0)], c(num_nodes[i], N0))
         y_hat_batch = W %m% y_hat_batch + b
         if (i < L) {
-          y_hat_batch = (abs(y_hat_batch) + y_hat_batch)/2
+          y_hat_batch = (abs(y_hat_batch) + y_hat_batch) / 2
         }
       }
 
@@ -275,7 +276,17 @@ gradient_fun <-
                  silent = TRUE,
                  checkArgs = list(theta))
 
-    return(makeGradFunc(log_p,x=theta,debug = FALSE,use_tape = TRUE,compiled = TRUE))#,
+    dlog_p = makeGradFunc(
+      log_p,
+      x = theta,
+      debug = FALSE,
+      use_tape = TRUE,
+      compiled = TRUE
+    )
+
+    #browser()
+
+    return(t(apply(theta_mat, 1, dlog_p)))#,
   }
 ##########################################
 ##        SVGD Utility Functions        ##
@@ -411,7 +422,7 @@ optimizer <-
            a0,
            b0,
            method,
-           gradient_method) {
+           use_autodiff) {
     grad_theta <-
       matrix(rep(0, times = M * num_vars), nrow = M, ncol = num_vars)
 
@@ -429,7 +440,19 @@ optimizer <-
       batch <- ((i * batch_size):((i + 1) * batch_size - 1)) %% N0
       batch <- batch + 1
 
-      if (gradient_method == 'Rbase') {
+      if (use_autodiff) {
+        para_list <- unpack_parameters(theta[1,], d, num_nodes)
+        grad_theta = gradient_auto(
+          t(X_train[batch, ]),
+          matrix(y_train[, batch], ncol = batch_size),
+          theta,
+          eigenMat_inv,
+          para_list,
+          N0,
+          a0,
+          b0
+        )
+      } else {
         for (j in 1:M) {
           para_list <- unpack_parameters(theta[j,], d, num_nodes)
           grad_theta[j,] <-
@@ -443,22 +466,8 @@ optimizer <-
               b0
             )
         }
-      } else if (gradient_method == 'autodiffr') {
-        f = gradient_fun(
-          t(X_train[batch,]),
-          matrix(y_train[, batch], ncol = batch_size),
-          eigenMat_inv,
-          unpack_parameters(theta[1,], d, num_nodes),
-          N0,
-          a0,
-          b0
-        )
-
-        #browser()
-        grad_theta = t(apply(theta, 1, f))
       }
       #browser()
-
 
       # Calculate the kernel matrix
       kernel_list <- svgd_kernel(theta = theta)
@@ -487,7 +496,6 @@ optimizer <-
         theta <-
           theta + (master_stepsize * m_cap) / (sqrt(v_cap) + epsilon)
       }
-      cat(i + 1, '')
       if (((i + 1) %% 50 == 0) &
           (mean((theta - theta_prev) ^ 2) < 1e-10)) {
         cat('early stopping at iter', i + 1)
@@ -529,17 +537,17 @@ evaluation <-
              ncol = dim(X_test)[1])
 
     for (i in 1:M) {
-      para_list <- unpack_parameters(theta[i, ], d, num_nodes)
+      para_list <- unpack_parameters(theta[i,], d, num_nodes)
       loggamma <- para_list$loggamma
-      pred_y_test[i, , ] <-
+      pred_y_test[i, ,] <-
         forward_probagation(t(X_test), para_list, 'relu')$ZL * sd_y_train + mean_y_train
-      prob[i, ] <-
-        (exp(loggamma)) ^ (output_dim / 2) / ((2 * pi) ^ (output_dim / 2) * sqrt(det_eigenMat)) * exp(-exp(loggamma) / 2 * colSums((pred_y_test[i, , ] - y_test) ^
+      prob[i,] <-
+        (exp(loggamma)) ^ (output_dim / 2) / ((2 * pi) ^ (output_dim / 2) * sqrt(det_eigenMat)) * exp(-exp(loggamma) / 2 * colSums((pred_y_test[i, ,] - y_test) ^
                                                                                                                                      2 * diag(inv_eigenMat)))
     }
     pred <- apply(pred_y_test, c(2, 3), mean)
 
     svgd_rmse <- sqrt(mean((pred - y_test) ^ 2))
-    svgd_11 <- mean(log(colMeans(prob)))
-    return(list(svgd_rmse = svgd_rmse, svgd_11 = svgd_11))
+    svgd_ll <- mean(log(colMeans(prob)))
+    return(list(svgd_rmse = svgd_rmse, svgd_ll = svgd_ll))
   }

@@ -17,6 +17,7 @@
 #' @param auto_corr The auto correlation, which is needed to adjust convergence if using adagrad for optimization of the NN.
 #' @param method The optimization method to be used.
 #' @param eigenMat the variance matrix of the outcome
+#' @param use_autodiff Whether to use autodiffr, default to FALSE.
 #' @return A list containing:
 #' \itemize{
 #'   \item{theta: }{The estimated parameters in the vector format.}
@@ -31,7 +32,7 @@
 SVGD_bayesian_nn <-
   function(X_train,
            y_train,
-           eigenMat = diag(dim(y_train)[2]),
+           eigenMat = diag(x=apply(y_train,2,var)),
            X_test = NULL,
            y_test = NULL,
            batch_size = 100,
@@ -43,7 +44,7 @@ SVGD_bayesian_nn <-
            master_stepsize = 1e-3,
            auto_corr = 0.9,
            method = 'adam',
-           gradient_method='Rbase') {
+           use_autodiff=FALSE) {
     n_layers <- length(num_nodes) + 1
     d <- ncol(X_train)
     n_data <- nrow(X_train)
@@ -55,10 +56,10 @@ SVGD_bayesian_nn <-
 
     # Keep the last 10% (max 500) of training data points for model developing
     size_dev = min(round(0.1 * n_data), 500)
-    X_dev <- X_train[-(1:(n_data - size_dev)),]
-    y_dev <- y_train[-(1:(n_data - size_dev)),]
-    X_train <- X_train[(1:(n_data - size_dev)),]
-    y_train <- y_train[(1:(n_data - size_dev)),]
+    X_dev <- X_train[-(1:(n_data - size_dev)), ]
+    y_dev <- y_train[-(1:(n_data - size_dev)), ]
+    X_train <- X_train[(1:(n_data - size_dev)), ]
+    y_train <- y_train[(1:(n_data - size_dev)), ]
 
     # Normalize the data set
     X_train <- scale(X_train)
@@ -69,6 +70,9 @@ SVGD_bayesian_nn <-
     sd_y_train <- attr(y_train, 'scaled:scale')
     scaling_coef <-
       list(mean_X_train, sd_X_train, mean_y_train, sd_y_train)
+
+    scaled_eigenMat <- eigenMat / sd_y_train ^ 2
+    scaled_eigenMat_inv <- diag(1 / diag(scaled_eigenMat))
 
     y_train <- t(y_train)
     # Get the number of data points
@@ -81,12 +85,13 @@ SVGD_bayesian_nn <-
       # A better initialization for gamma
       ridx <- sample(N0, min(N0, 1000), replace = F)
       y_hat <-
-        forward_probagation(t(X_train[ridx,]), theta_i, 'relu')$ZL
+        forward_probagation(t(X_train[ridx, ]), theta_i, 'relu')$ZL
       loggamma <-
-        mean(log(diag(eigenMat)) - log(rowMeans((y_hat - y_train[, ridx]) ^ 2)))
+        mean(log(diag(scaled_eigenMat)) - log(rowMeans((y_hat - y_train[, ridx]) ^
+                                                         2)))
       theta_i$loggamma <- loggamma
 
-      theta[i,] <- pack_parameters(theta_i)
+      theta[i, ] <- pack_parameters(theta_i)
     }
 
     # Call the optimizer
@@ -94,7 +99,7 @@ SVGD_bayesian_nn <-
       optimizer(
         X_train,
         y_train,
-        eigenMat_inv,
+        scaled_eigenMat_inv,
         master_stepsize,
         auto_corr,
         max_iter,
@@ -108,7 +113,7 @@ SVGD_bayesian_nn <-
         a0,
         b0,
         method,
-        gradient_method
+        use_autodiff
       )
 
     # Tuning for a better gamma
@@ -128,7 +133,7 @@ SVGD_bayesian_nn <-
       )))
     }
     for (i in 1:M) {
-      para_list <- unpack_parameters(theta[i,], d, num_nodes)
+      para_list <- unpack_parameters(theta[i, ], d, num_nodes)
       pred_y_dev <-
         forward_probagation(t(X_dev), para_list, 'relu')$ZL * sd_y_train + mean_y_train
       lik1 <- f_log_lk(para_list$loggamma)
@@ -137,7 +142,7 @@ SVGD_bayesian_nn <-
       lik2 <- f_log_lk(loggamma2)
       if (lik2 > lik1) {
         para_list$loggamma <- loggamma2
-        theta[i,] <- pack_parameters(para_list)
+        theta[i, ] <- pack_parameters(para_list)
       }
     }
 
@@ -149,7 +154,7 @@ SVGD_bayesian_nn <-
           theta = theta,
           scaling_coef = scaling_coef,
           svgd_rmse = metrics$svgd_rmse,
-          svgd_11 = metrics$svgd_11
+          svgd_ll = metrics$svgd_ll
         )
       )
     } else {

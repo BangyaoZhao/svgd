@@ -7,7 +7,7 @@
 SVGD_bayesian_nn(
   X_train,
   y_train,
-  eigenMat = diag(dim(y_train)[2]),
+  eigenMat = diag(x = apply(y_train, 2, var)),
   X_test = NULL,
   y_test = NULL,
   batch_size = 100,
@@ -18,7 +18,8 @@ SVGD_bayesian_nn(
   b0 = 0.1,
   master_stepsize = 0.001,
   auto_corr = 0.9,
-  method = "adam"
+  method = "adam",
+  use_autodiff = FALSE
 )
 }
 \arguments{
@@ -49,6 +50,8 @@ SVGD_bayesian_nn(
 \item{auto_corr}{The auto correlation, which is needed to adjust convergence if using adagrad for optimization of the NN.}
 
 \item{method}{The optimization method to be used.}
+
+\item{use_autodiff}{Whether to use autodiffr, default to FALSE.}
 }
 \value{
 A list containing:
