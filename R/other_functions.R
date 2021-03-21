@@ -1,6 +1,7 @@
 ##########################################
 ##   Neural Network Utility Functions   ##
 ##########################################
+#' @importFrom utils setTxtProgressBar txtProgressBar
 
 relu <- function(A) {
   Z <- pmax(A, 0)
@@ -218,10 +219,9 @@ gradient <-
     return(d_para_vector)
   }
 
-gradient_auto <-
+gradient2 <-
   function(X_batch,
            y_batch,
-           theta_mat,
            eigenMat_inv,
            parameters,
            N,
@@ -260,33 +260,17 @@ gradient_auto <-
           array(theta[rep(first[2 * i]:last[2 * i], N0)], c(num_nodes[i], N0))
         y_hat_batch = W %m% y_hat_batch + b
         if (i < L) {
-          y_hat_batch = (abs(y_hat_batch) + y_hat_batch) / 2
+          y_hat_batch = y_hat_batch * (y_hat_batch > 0)
         }
       }
-
-
       l1 = N * n_last_layer * loggamma / 2 - N / N0 * sum(eigenMat_inv %m% ((y_hat_batch -
                                                                                y_batch) ^ 2)) * exp(loggamma) / 2#
+      #l1=l1*N0/N
       l = l + l1
       return(l)
     }
-    #browser()
-    log_p <-
-      ad_variant(log_p,
-                 silent = TRUE,
-                 checkArgs = list(theta))
 
-    dlog_p = makeGradFunc(
-      log_p,
-      x = theta,
-      debug = FALSE,
-      use_tape = TRUE,
-      compiled = TRUE
-    )
-
-    #browser()
-
-    return(t(apply(theta_mat, 1, dlog_p)))#,
+    return(ad_grad(log_p, theta))
   }
 ##########################################
 ##        SVGD Utility Functions        ##
@@ -422,7 +406,7 @@ optimizer <-
            a0,
            b0,
            method,
-           use_autodiff) {
+           use_autodiff = F) {
     grad_theta <-
       matrix(rep(0, times = M * num_vars), nrow = M, ncol = num_vars)
 
@@ -435,39 +419,25 @@ optimizer <-
     v_t <- 0
     historical_grad <- 0
 
+    pb <- txtProgressBar(min = 0, max = max_iter, style = 3)
     for (i in 0:(max_iter - 1)) {
       # Sub-sampling step
       batch <- ((i * batch_size):((i + 1) * batch_size - 1)) %% N0
       batch <- batch + 1
 
-      if (use_autodiff) {
-        para_list <- unpack_parameters(theta[1,], d, num_nodes)
-        grad_theta = gradient_auto(
-          t(X_train[batch, ]),
-          matrix(y_train[, batch], ncol = batch_size),
-          theta,
-          eigenMat_inv,
-          para_list,
-          N0,
-          a0,
-          b0
-        )
-      } else {
-        for (j in 1:M) {
-          para_list <- unpack_parameters(theta[j,], d, num_nodes)
-          grad_theta[j,] <-
-            gradient(
-              t(X_train[batch,]),
-              matrix(y_train[, batch], ncol = batch_size),
-              eigenMat_inv,
-              para_list,
-              N0,
-              a0,
-              b0
-            )
-        }
+      for (j in 1:M) {
+        para_list <- unpack_parameters(theta[j,], d, num_nodes)
+        grad_theta[j,] <-
+          gradient(
+            t(X_train[batch,]),
+            matrix(y_train[, batch], ncol = batch_size),
+            eigenMat_inv,
+            para_list,
+            N0,
+            a0,
+            b0
+          )
       }
-      #browser()
 
       # Calculate the kernel matrix
       kernel_list <- svgd_kernel(theta = theta)
@@ -496,12 +466,15 @@ optimizer <-
         theta <-
           theta + (master_stepsize * m_cap) / (sqrt(v_cap) + epsilon)
       }
+      #cat(i + 1, ' ')
       if (((i + 1) %% 50 == 0) &
           (mean((theta - theta_prev) ^ 2) < 1e-10)) {
         cat('early stopping at iter', i + 1)
         break
       }
+      setTxtProgressBar(pb, i+1)
     }
+    close(pb)
     return(theta)
   }
 
@@ -520,7 +493,7 @@ evaluation <-
     y_test <- t(y_test)
 
     output_dim <- dim(y_test)[1]
-    det_eigenMat <- cumprod(diag(eigenMat))[output_dim]
+    log_det_eigenMat <- sum(log(diag(eigenMat)))
     inv_eigenMat <- diag(1 / diag(eigenMat))
 
     X_test <-
@@ -542,12 +515,12 @@ evaluation <-
       pred_y_test[i, ,] <-
         forward_probagation(t(X_test), para_list, 'relu')$ZL * sd_y_train + mean_y_train
       prob[i,] <-
-        (exp(loggamma)) ^ (output_dim / 2) / ((2 * pi) ^ (output_dim / 2) * sqrt(det_eigenMat)) * exp(-exp(loggamma) / 2 * colSums((pred_y_test[i, ,] - y_test) ^
-                                                                                                                                     2 * diag(inv_eigenMat)))
+        (exp(loggamma)) ^ (output_dim / 2) / ((2 * pi) ^ (output_dim / 2)) *
+        exp(-exp(loggamma) / 2 * colSums((pred_y_test[i, ,] - y_test) ^ 2 * diag(inv_eigenMat)))
     }
     pred <- apply(pred_y_test, c(2, 3), mean)
 
     svgd_rmse <- sqrt(mean((pred - y_test) ^ 2))
-    svgd_ll <- mean(log(colMeans(prob)))
+    svgd_ll <- mean(log(colMeans(prob))) - 0.5 * log_det_eigenMat
     return(list(svgd_rmse = svgd_rmse, svgd_ll = svgd_ll))
   }

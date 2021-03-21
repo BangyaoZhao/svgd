@@ -18,8 +18,7 @@ SVGD_bayesian_nn(
   b0 = 0.1,
   master_stepsize = 0.001,
   auto_corr = 0.9,
-  method = "adam",
-  use_autodiff = FALSE
+  method = "adam"
 )
 }
 \arguments{

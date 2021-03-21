@@ -32,7 +32,7 @@
 SVGD_bayesian_nn <-
   function(X_train,
            y_train,
-           eigenMat = diag(x=apply(y_train,2,var)),
+           eigenMat = diag(x = apply(y_train, 2, var)),
            X_test = NULL,
            y_test = NULL,
            batch_size = 100,
@@ -43,8 +43,7 @@ SVGD_bayesian_nn <-
            b0 = 0.1,
            master_stepsize = 1e-3,
            auto_corr = 0.9,
-           method = 'adam',
-           use_autodiff=FALSE) {
+           method = 'adam') {
     n_layers <- length(num_nodes) + 1
     d <- ncol(X_train)
     n_data <- nrow(X_train)
@@ -56,10 +55,10 @@ SVGD_bayesian_nn <-
 
     # Keep the last 10% (max 500) of training data points for model developing
     size_dev = min(round(0.1 * n_data), 500)
-    X_dev <- X_train[-(1:(n_data - size_dev)), ]
-    y_dev <- y_train[-(1:(n_data - size_dev)), ]
-    X_train <- X_train[(1:(n_data - size_dev)), ]
-    y_train <- y_train[(1:(n_data - size_dev)), ]
+    X_dev <- X_train[-(1:(n_data - size_dev)),]
+    y_dev <- y_train[-(1:(n_data - size_dev)),]
+    X_train <- X_train[(1:(n_data - size_dev)),]
+    y_train <- y_train[(1:(n_data - size_dev)),]
 
     # Normalize the data set
     X_train <- scale(X_train)
@@ -85,13 +84,13 @@ SVGD_bayesian_nn <-
       # A better initialization for gamma
       ridx <- sample(N0, min(N0, 1000), replace = F)
       y_hat <-
-        forward_probagation(t(X_train[ridx, ]), theta_i, 'relu')$ZL
+        forward_probagation(t(X_train[ridx,]), theta_i, 'relu')$ZL
       loggamma <-
         mean(log(diag(scaled_eigenMat)) - log(rowMeans((y_hat - y_train[, ridx]) ^
                                                          2)))
       theta_i$loggamma <- loggamma
 
-      theta[i, ] <- pack_parameters(theta_i)
+      theta[i,] <- pack_parameters(theta_i)
     }
 
     # Call the optimizer
@@ -112,8 +111,7 @@ SVGD_bayesian_nn <-
         theta,
         a0,
         b0,
-        method,
-        use_autodiff
+        method
       )
 
     # Tuning for a better gamma
@@ -125,24 +123,27 @@ SVGD_bayesian_nn <-
 
     f_log_lk <- function(loggamma) {
       output_dim <- dim(y_train)[1]
-      det_eigenMat <- cumprod(diag(eigenMat))[output_dim]
+      log_det_eigenMat <- sum(log(diag(eigenMat)))
       return(sum(log((exp(loggamma) ^ (output_dim / 2)) / ((2 * pi) ^ (output_dim /
-                                                                         2) * sqrt(det_eigenMat)) * exp(-exp(loggamma) / 2 * colSums((pred_y_dev - y_dev) ^
-                                                                                                                                       2 * diag(eigenMat_inv)
-                                                                         ))
-      )))
+                                                                         2)) * exp(-exp(loggamma) / 2
+                                                                                   * colSums((pred_y_dev - y_dev) ^
+                                                                                               2 * diag(eigenMat_inv)
+                                                                                   ))
+      ) - 0.5 * log_det_eigenMat))
     }
+
     for (i in 1:M) {
-      para_list <- unpack_parameters(theta[i, ], d, num_nodes)
+      para_list <- unpack_parameters(theta[i,], d, num_nodes)
       pred_y_dev <-
         forward_probagation(t(X_dev), para_list, 'relu')$ZL * sd_y_train + mean_y_train
       lik1 <- f_log_lk(para_list$loggamma)
       loggamma2 <-
         mean(log(diag(eigenMat)) - log(rowMeans((y_hat - y_train[, ridx]) ^ 2)))
       lik2 <- f_log_lk(loggamma2)
+
       if (lik2 > lik1) {
         para_list$loggamma <- loggamma2
-        theta[i, ] <- pack_parameters(para_list)
+        theta[i,] <- pack_parameters(para_list)
       }
     }
 
