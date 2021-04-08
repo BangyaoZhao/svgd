@@ -10,7 +10,7 @@ devtools::install_github("BangyaoZhao/svgd")
 
 Load package by:
 ```
-library("svgd")
+library(svgd)
 ```
 
 ## usage
@@ -21,10 +21,11 @@ One simple example can be found here:
 library(MASS)
 library(ggplot2)
 library(dplyr)
-
 df = Boston
 X = as.matrix(df[, 1:12])
 y = as.matrix(df[, 13:14])
+
+
 SVGD = SVGD_bayesian_nn(
   X_train = X,
   y_train = y,
@@ -32,20 +33,13 @@ SVGD = SVGD_bayesian_nn(
   y_test = y,
   M = 20,
   batch_size = 100,
-  max_iter = 2000,
+  max_iter = 500,
   num_nodes = c(50, 2),
   master_stepsize = 1e-3,
-  method = 'adagrad',
-  use_autodiff = FALSE
+  method = 'adagrad'
 )
-# Another option is use_autodiff = TRUE
-# You need the following code to setup the autodiffr
-# library(autodiffr)
-# ad_setup(JULIA_HOME = "the file folder contains the julia binary")
+
 y_hat = SVGD_bayesian_nn_predict(X, SVGD$theta, c(50, 2), SVGD$scaling_coef)
-
-
-
 rownames(y_hat) = colnames(y)
 rbind(data.frame(t(y_hat), type = 'y_hat'), data.frame(y, type = 'y')) %>%
   ggplot(aes(lstat, medv, color = type)) +

@@ -97,9 +97,9 @@ linear_backward <- function(dA, cache) {
   W <- cache$W
   b <- cache$b
 
-  dW <- dA %*% t(Z_prev)
+  dW <- tcrossprod(dA, Z_prev)#dA %*% t(Z_prev)
   db <- rowSums(dA)
-  dZ_prev <- t(W) %*% dA
+  dZ_prev <- crossprod(W, dA)#t(W) %*% dA
 
   return(list(dZ_prev = dZ_prev, dW = dW, db = db))
 }
@@ -426,10 +426,10 @@ optimizer <-
       batch <- batch + 1
 
       for (j in 1:M) {
-        para_list <- unpack_parameters(theta[j,], d, num_nodes)
-        grad_theta[j,] <-
+        para_list <- unpack_parameters(theta[j, ], d, num_nodes)
+        grad_theta[j, ] <-
           gradient(
-            t(X_train[batch,]),
+            t(X_train[batch, ]),
             matrix(y_train[, batch], ncol = batch_size),
             eigenMat_inv,
             para_list,
@@ -472,7 +472,7 @@ optimizer <-
         cat('early stopping at iter', i + 1)
         break
       }
-      setTxtProgressBar(pb, i+1)
+      setTxtProgressBar(pb, i + 1)
     }
     close(pb)
     return(theta)
@@ -510,13 +510,13 @@ evaluation <-
              ncol = dim(X_test)[1])
 
     for (i in 1:M) {
-      para_list <- unpack_parameters(theta[i,], d, num_nodes)
+      para_list <- unpack_parameters(theta[i, ], d, num_nodes)
       loggamma <- para_list$loggamma
-      pred_y_test[i, ,] <-
+      pred_y_test[i, , ] <-
         forward_probagation(t(X_test), para_list, 'relu')$ZL * sd_y_train + mean_y_train
-      prob[i,] <-
+      prob[i, ] <-
         (exp(loggamma)) ^ (output_dim / 2) / ((2 * pi) ^ (output_dim / 2)) *
-        exp(-exp(loggamma) / 2 * colSums((pred_y_test[i, ,] - y_test) ^ 2 * diag(inv_eigenMat)))
+        exp(-exp(loggamma) / 2 * colSums((pred_y_test[i, , ] - y_test) ^ 2 * diag(inv_eigenMat)))
     }
     pred <- apply(pred_y_test, c(2, 3), mean)
 
