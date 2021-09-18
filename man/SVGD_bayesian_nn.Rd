@@ -10,15 +10,12 @@ SVGD_bayesian_nn(
   eigenMat = diag(x = apply(y_train, 2, var)),
   X_test = NULL,
   y_test = NULL,
-  batch_size = 100,
-  max_iter = 1000,
+  dev_split = 0.1,
   M = 20,
   num_nodes = c(20, 1),
   a0 = 1,
   b0 = 0.1,
-  master_stepsize = 0.001,
-  auto_corr = 0.9,
-  method = "adam"
+  initial_values = FALSE
 )
 }
 \arguments{
@@ -32,10 +29,6 @@ SVGD_bayesian_nn(
 
 \item{y_test}{The testing dataset outcomes, a vector with the length same as the number of rows of `X_test`.}
 
-\item{batch_size}{The batch size.}
-
-\item{max_iter}{The maximum number of iterations.}
-
 \item{M}{The number of particles.}
 
 \item{num_nodes}{The number of nodes in each hidden layer (does not include the last layer, because the node in the last layer is always 1).}
@@ -43,6 +36,10 @@ SVGD_bayesian_nn(
 \item{a0}{a0, for the prior distribution of lambda and gamma.}
 
 \item{b0}{b0, for the prior distribution of lambda and gamma.}
+
+\item{batch_size}{The batch size.}
+
+\item{max_iter}{The maximum number of iterations.}
 
 \item{master_stepsize}{The master stepsize, which is needed to adjust convergence if using adagrad for optimization of the NN.}
 

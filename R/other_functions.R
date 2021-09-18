@@ -1,7 +1,6 @@
 ##########################################
 ##   Neural Network Utility Functions   ##
 ##########################################
-#' @importFrom utils setTxtProgressBar txtProgressBar
 
 relu <- function(A) {
   Z <- pmax(A, 0)
@@ -97,9 +96,9 @@ linear_backward <- function(dA, cache) {
   W <- cache$W
   b <- cache$b
 
-  dW <- tcrossprod(dA, Z_prev)#dA %*% t(Z_prev)
+  dW <- dA %*% t(Z_prev)
   db <- rowSums(dA)
-  dZ_prev <- crossprod(W, dA)#t(W) %*% dA
+  dZ_prev <- t(W) %*% dA
 
   return(list(dZ_prev = dZ_prev, dW = dW, db = db))
 }
@@ -384,143 +383,3 @@ initialization <- function(d, num_nodes, a0, b0) {
   para_list$loglambda = log(rgamma(1, shape = a0, scale = b0))
   return(para_list)
 }
-
-##########################################
-##      Train, Predict and Evaluate     ##
-##########################################
-
-optimizer <-
-  function(X_train,
-           y_train,
-           eigenMat_inv,
-           master_stepsize,
-           auto_corr,
-           max_iter,
-           batch_size,
-           M,
-           num_vars,
-           d,
-           num_nodes,
-           N0,
-           theta,
-           a0,
-           b0,
-           method,
-           use_autodiff = F) {
-    grad_theta <-
-      matrix(rep(0, times = M * num_vars), nrow = M, ncol = num_vars)
-
-    fudge_factor <- 1e-6
-
-    beta_1 <- 0.9
-    beta_2 <- 0.999
-    epsilon <- 1e-8
-    m_t <- 0
-    v_t <- 0
-    historical_grad <- 0
-
-    pb <- txtProgressBar(min = 0, max = max_iter, style = 3)
-    for (i in 0:(max_iter - 1)) {
-      # Sub-sampling step
-      batch <- ((i * batch_size):((i + 1) * batch_size - 1)) %% N0
-      batch <- batch + 1
-
-      for (j in 1:M) {
-        para_list <- unpack_parameters(theta[j, ], d, num_nodes)
-        grad_theta[j, ] <-
-          gradient(
-            t(X_train[batch, ]),
-            matrix(y_train[, batch], ncol = batch_size),
-            eigenMat_inv,
-            para_list,
-            N0,
-            a0,
-            b0
-          )
-      }
-
-      # Calculate the kernel matrix
-      kernel_list <- svgd_kernel(theta = theta)
-      grad_theta <-
-        (kernel_list$Kxy %*% grad_theta + kernel_list$dxkxy) / M
-
-      if (method == 'adagrad') {
-        if (i == 0) {
-          historical_grad <- historical_grad + grad_theta ^ 2
-        } else {
-          historical_grad <-
-            auto_corr * historical_grad + (1 - auto_corr) * grad_theta ^ 2
-        }
-        adj_grad <-
-          grad_theta / (fudge_factor + sqrt(historical_grad))
-        theta_prev = theta
-        theta <- theta + master_stepsize * adj_grad
-      } else {
-        t <- i + 1
-        g_t <- grad_theta
-        m_t <- beta_1 * m_t + (1 - beta_1) * g_t
-        v_t <- beta_2 * v_t + (1 - beta_2) * (g_t ^ 2)
-        m_cap <- m_t / (1 - (beta_1 ** t))
-        v_cap <- v_t / (1 - (beta_2 ** t))
-        theta_prev = theta
-        theta <-
-          theta + (master_stepsize * m_cap) / (sqrt(v_cap) + epsilon)
-      }
-      #cat(i + 1, ' ')
-      if (((i + 1) %% 50 == 0) &
-          (mean((theta - theta_prev) ^ 2) < 1e-10)) {
-        cat('early stopping at iter', i + 1)
-        break
-      }
-      setTxtProgressBar(pb, i + 1)
-    }
-    close(pb)
-    return(theta)
-  }
-
-evaluation <-
-  function(X_test,
-           y_test,
-           eigenMat,
-           theta,
-           num_nodes,
-           scaling_coef) {
-    M <- dim(theta)[1]
-    mean_X_train <- scaling_coef[[1]]
-    sd_X_train <- scaling_coef[[2]]
-    mean_y_train <- scaling_coef[[3]]
-    sd_y_train <- scaling_coef[[4]]
-    y_test <- t(y_test)
-
-    output_dim <- dim(y_test)[1]
-    log_det_eigenMat <- sum(log(diag(eigenMat)))
-    inv_eigenMat <- diag(1 / diag(eigenMat))
-
-    X_test <-
-      t(apply(X_test, 1, function(x) {
-        (x - mean_X_train) / sd_X_train
-      }))
-
-    d <- ncol(X_test)
-
-    pred_y_test <- array(0, dim = c(M, output_dim, dim(y_test)[2]))
-    prob <-
-      matrix(rep(0, times = M * length(y_test)),
-             nrow = M,
-             ncol = dim(X_test)[1])
-
-    for (i in 1:M) {
-      para_list <- unpack_parameters(theta[i, ], d, num_nodes)
-      loggamma <- para_list$loggamma
-      pred_y_test[i, , ] <-
-        forward_probagation(t(X_test), para_list, 'relu')$ZL * sd_y_train + mean_y_train
-      prob[i, ] <-
-        (exp(loggamma)) ^ (output_dim / 2) / ((2 * pi) ^ (output_dim / 2)) *
-        exp(-exp(loggamma) / 2 * colSums((pred_y_test[i, , ] - y_test) ^ 2 * diag(inv_eigenMat)))
-    }
-    pred <- apply(pred_y_test, c(2, 3), mean)
-
-    svgd_rmse <- sqrt(mean((pred - y_test) ^ 2))
-    svgd_ll <- mean(log(colMeans(prob))) - 0.5 * log_det_eigenMat
-    return(list(svgd_rmse = svgd_rmse, svgd_ll = svgd_ll))
-  }

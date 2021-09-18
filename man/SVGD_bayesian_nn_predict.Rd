@@ -4,7 +4,7 @@
 \alias{SVGD_bayesian_nn_predict}
 \title{Prediction Function}
 \usage{
-SVGD_bayesian_nn_predict(X, theta, num_nodes, scaling_coef)
+SVGD_bayesian_nn_predict(svgd_bnn, X)
 }
 \arguments{
 \item{X}{The covariate matrix to be predicted.}

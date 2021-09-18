@@ -18,31 +18,57 @@ library(svgd)
 One simple example can be found here:
 
 ```
+##########################################
+##             Boston Example           ##
+##########################################
+devtools::load_all()
 library(MASS)
 library(ggplot2)
 library(dplyr)
+# library(autodiffr)
+# ad_setup()
+
 df = Boston
 X = as.matrix(df[, 1:12])
 y = as.matrix(df[, 13:14])
+SVGD = SVGD_bayesian_nn(X_train = X,
+                        y_train = y,
+                        M = 20,
+                        a0 = 1,
+                        b0 = 0.1
+                        )
+SVGD = optimizer(SVGD,
+                 max_iter = 1000,
+                 batch_size = 100,
+                 tol = 1e-6,
+                 check_freq = Inf)
+evaluation(SVGD, SVGD$X_dev, SVGD$y_dev)
+SVGD = optimizer(SVGD,
+                 max_iter = 1000,
+                 batch_size = 100,
+                 tol = 1e-6,
+                 check_freq = Inf)
 
 
-SVGD = SVGD_bayesian_nn(
-  X_train = X,
-  y_train = y,
-  X_test = X,
-  y_test = y,
-  M = 20,
-  batch_size = 100,
-  max_iter = 500,
-  num_nodes = c(50, 2),
-  master_stepsize = 1e-3,
-  method = 'adagrad'
-)
+SVGD = development(SVGD)
+evaluation(SVGD, X, y)
 
-y_hat = SVGD_bayesian_nn_predict(X, SVGD$theta, c(50, 2), SVGD$scaling_coef)
-rownames(y_hat) = colnames(y)
-rbind(data.frame(t(y_hat), type = 'y_hat'), data.frame(y, type = 'y')) %>%
-  ggplot(aes(lstat, medv, color = type)) +
-  geom_point() +
+# plot
+y_hat=SVGD_bayesian_nn_predict(SVGD,X)
+y_hat%>%
+  t()%>%
+  as.data.frame()%>%
+  rename(lstat=V1,medv=V2)%>%
+  mutate(type = 'predict')->
+  data1
+y%>%
+  as.data.frame()%>%
+  mutate(type = 'true')->
+  data2
+
+data = rbind(data1,data2)
+data%>%
+  ggplot(aes(lstat,medv,color = type))+
+  geom_point()+
   theme_bw()
 ```

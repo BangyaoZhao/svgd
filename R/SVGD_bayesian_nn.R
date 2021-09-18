@@ -27,38 +27,42 @@
 #' }
 #' @importFrom stats dist median rgamma rnorm
 #' @importFrom utils tail
-#' @export
+#' @export SVGD_bayesian_nn
 
 SVGD_bayesian_nn <-
   function(X_train,
            y_train,
            eigenMat = diag(x = apply(y_train, 2, var)),
-           X_test = NULL,
-           y_test = NULL,
-           batch_size = 100,
-           max_iter = 1000,
+           X_test = X_train,
+           y_test = y_train,
+           dev_split = 0.1,
            M = 20,
-           num_nodes = c(20, 1),
+           num_nodes = c(ncol(X_train), ncol(y_train)),
            a0 = 1,
            b0 = 0.1,
-           master_stepsize = 1e-3,
-           auto_corr = 0.9,
-           method = 'adam') {
+           initial_values = FALSE) {
     n_layers <- length(num_nodes) + 1
     d <- ncol(X_train)
     n_data <- nrow(X_train)
 
-    eigenMat_inv <- diag(1 / diag(eigenMat))
+    if (dim(eigenMat)[1] == 1) {
+      eigenMat_inv <- as.matrix(1 / eigenMat)
+    } else {
+      eigenMat_inv <- diag(1 / diag(eigenMat))
+    }
 
     para_cumsum <- parameter_cumsum(d, num_nodes)$para_cumsum
     num_vars <- tail(para_cumsum, 1)
 
     # Keep the last 10% (max 500) of training data points for model developing
-    size_dev = min(round(0.1 * n_data), 500)
-    X_dev <- X_train[-(1:(n_data - size_dev)),]
-    y_dev <- y_train[-(1:(n_data - size_dev)),]
-    X_train <- X_train[(1:(n_data - size_dev)),]
-    y_train <- y_train[(1:(n_data - size_dev)),]
+    size_dev = min(round(dev_split * n_data), 500)
+    X_dev <- X_train[-(1:(n_data - size_dev)), ]
+    y_dev <- y_train[-(1:(n_data - size_dev)), ]
+    X_train <- X_train[(1:(n_data - size_dev)), ]
+    y_train <- y_train[(1:(n_data - size_dev)), ]
+
+    X_train_unscaled = X_train
+    y_train_unscaled = y_train
 
     # Normalize the data set
     X_train <- scale(X_train)
@@ -68,97 +72,70 @@ SVGD_bayesian_nn <-
     mean_y_train <- attr(y_train, 'scaled:center')
     sd_y_train <- attr(y_train, 'scaled:scale')
     scaling_coef <-
-      list(mean_X_train, sd_X_train, mean_y_train, sd_y_train)
+      list(
+        mean_X_train = mean_X_train,
+        sd_X_train = sd_X_train,
+        mean_y_train = mean_y_train,
+        sd_y_train = sd_y_train
+      )
 
     scaled_eigenMat <- eigenMat / sd_y_train ^ 2
-    scaled_eigenMat_inv <- diag(1 / diag(scaled_eigenMat))
+    if (dim(eigenMat)[1] == 1) {
+      scaled_eigenMat_inv = as.matrix(1 / scaled_eigenMat)
+    } else {
+      scaled_eigenMat_inv <- diag(1 / diag(scaled_eigenMat))
+    }
 
     y_train <- t(y_train)
     # Get the number of data points
     N0 <- nrow(X_train)
-    # Initialize the parameters
-    theta <- matrix(rep(0, num_vars * M), nrow = M)
-    for (i in 1:M) {
-      theta_i <- initialization(d, num_nodes, a0, b0)
 
-      # A better initialization for gamma
-      ridx <- sample(N0, min(N0, 1000), replace = F)
-      y_hat <-
-        forward_probagation(t(X_train[ridx,]), theta_i, 'relu')$ZL
-      loggamma <-
-        mean(log(diag(scaled_eigenMat)) - log(rowMeans((y_hat - y_train[, ridx]) ^
-                                                         2)))
-      theta_i$loggamma <- loggamma
+    if (is.matrix(initial_values)) {
+      theta = initial_values
+    } else {
+      # Initialize the parameters
+      theta <- matrix(rep(0, num_vars * M), nrow = M)
+      for (i in 1:M) {
+        theta_i <- initialization(d, num_nodes, a0, b0)
 
-      theta[i,] <- pack_parameters(theta_i)
-    }
+        # A better initialization for gamma
+        ridx <- sample(N0, min(N0, 1000), replace = F)
+        y_hat <-
+          forward_probagation(t(X_train[ridx, ]), theta_i, 'relu')$ZL
+        loggamma <-
+          mean(log(diag(scaled_eigenMat)) - log(rowMeans((
+            y_hat - y_train[, ridx]
+          ) ^
+            2)))
+        theta_i$loggamma <- loggamma
 
-    # Call the optimizer
-    theta <-
-      optimizer(
-        X_train,
-        y_train,
-        scaled_eigenMat_inv,
-        master_stepsize,
-        auto_corr,
-        max_iter,
-        batch_size,
-        M,
-        num_vars,
-        d,
-        num_nodes,
-        N0,
-        theta,
-        a0,
-        b0,
-        method
-      )
-
-    # Tuning for a better gamma
-    X_dev <-
-      t(apply(X_dev, 1, function(x) {
-        (x - mean_X_train) / sd_X_train
-      }))
-    y_dev <- t(y_dev)
-
-    f_log_lk <- function(loggamma) {
-      output_dim <- dim(y_train)[1]
-      log_det_eigenMat <- sum(log(diag(eigenMat)))
-      return(sum(log((exp(loggamma) ^ (output_dim / 2)) / ((2 * pi) ^ (output_dim /
-                                                                         2)) * exp(-exp(loggamma) / 2
-                                                                                   * colSums((pred_y_dev - y_dev) ^
-                                                                                               2 * diag(eigenMat_inv)
-                                                                                   ))
-      ) - 0.5 * log_det_eigenMat))
-    }
-
-    for (i in 1:M) {
-      para_list <- unpack_parameters(theta[i,], d, num_nodes)
-      pred_y_dev <-
-        forward_probagation(t(X_dev), para_list, 'relu')$ZL * sd_y_train + mean_y_train
-      lik1 <- f_log_lk(para_list$loggamma)
-      loggamma2 <-
-        mean(log(diag(eigenMat)) - log(rowMeans((y_hat - y_train[, ridx]) ^ 2)))
-      lik2 <- f_log_lk(loggamma2)
-
-      if (lik2 > lik1) {
-        para_list$loggamma <- loggamma2
-        theta[i,] <- pack_parameters(para_list)
+        theta[i, ] <- pack_parameters(theta_i)
       }
     }
 
-    if (!is.null(X_test)) {
-      metrics <-
-        evaluation(X_test, y_test, eigenMat, theta, num_nodes, scaling_coef)
-      return(
-        list(
-          theta = theta,
-          scaling_coef = scaling_coef,
-          svgd_rmse = metrics$svgd_rmse,
-          svgd_ll = metrics$svgd_ll
-        )
+    return(
+      list(
+        X_train_scaled = X_train,
+        y_train_scaled = y_train,
+        X_train_unscaled = X_train_unscaled,
+        y_train_unscaled = y_train_unscaled,
+        X_dev = X_dev,
+        y_dev = y_dev,
+        X_test = X_test,
+        y_test = y_test,
+        scaling_coef = scaling_coef,
+        eigenMat = eigenMat,
+        eigenMat_inv = eigenMat_inv,
+        scaled_eigenMat = scaled_eigenMat,
+        scaled_eigenMat_inv = scaled_eigenMat_inv,
+        num_vars = num_vars,
+        d = d,
+        N0 = N0,
+        M = M,
+        num_nodes = num_nodes,
+        a0 = a0,
+        b0 = b0,
+        theta = theta
       )
-    } else {
-      return(list(theta = theta, scaling_coef = scaling_coef))
-    }
+    )
   }

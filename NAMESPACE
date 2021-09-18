@@ -2,10 +2,11 @@
 
 export(SVGD_bayesian_nn)
 export(SVGD_bayesian_nn_predict)
+export(development)
+export(evaluation)
+export(optimizer)
 importFrom(stats,dist)
 importFrom(stats,median)
 importFrom(stats,rgamma)
 importFrom(stats,rnorm)
-importFrom(utils,setTxtProgressBar)
 importFrom(utils,tail)
-importFrom(utils,txtProgressBar)
