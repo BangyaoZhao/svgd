@@ -1,6 +1,7 @@
 #' @export optimizer
 
 optimizer <-
+  optimizer <-
   function(svgd_bnn,
            master_stepsize = 0.001,
            auto_corr = 0.9,
@@ -10,8 +11,7 @@ optimizer <-
            use_autodiff = F,
            monitor_metric = 'Rsq',
            tol = 1e-4,
-           check_freq = 50
-  ) {
+           check_freq = 50) {
     X_train = svgd_bnn$X_train_scaled
     y_train = svgd_bnn$y_train_scaled
     X_train_unscaled = svgd_bnn$X_train_unscaled
@@ -50,10 +50,10 @@ optimizer <-
       batch <- batch + 1
 
       for (j in 1:M) {
-        para_list <- unpack_parameters(theta[j, ], d, num_nodes)
-        grad_theta[j, ] <-
+        para_list <- unpack_parameters(theta[j,], d, num_nodes)
+        grad_theta[j,] <-
           gradient(
-            t(X_train[batch, ]),
+            t(X_train[batch,]),
             matrix(y_train[, batch], ncol = batch_size),
             eigenMat_inv,
             para_list,
@@ -94,7 +94,7 @@ optimizer <-
       #cat(i + 1, ' ')
 
 
-      if ((i+1) %% check_freq == 0) {
+      if ((i + 1) %% check_freq == 0) {
         svgd_bnn_prev = svgd_bnn
         svgd_bnn_prev$theta = theta_prev
         metric_prev = evaluation(svgd_bnn_prev, X_train_unscaled, y_train_unscaled)[[sprintf('svgd_%s', monitor_metric)]]
@@ -106,14 +106,28 @@ optimizer <-
         metric = c(metric, metric_new)
         val_metric = c(val_metric, val_metric_new)
 
-        plot(metric, type = 'l', col = 'blue', xaxt = 'n', xlab = 'iter', ylab = monitor_metric)
+        plot(
+          metric,
+          type = 'l',
+          col = 'blue',
+          xaxt = 'n',
+          xlab = 'iter',
+          ylab = monitor_metric
+        )
         lines(val_metric, col = 'red')
-        legend(x = 'topleft', legend = c("train", "validation"), col = c('blue', 'red'), lty = 1)
+        legend(
+          x = 'topleft',
+          legend = c("train", "validation"),
+          col = c('blue', 'red'),
+          lty = 1
+        )
 
 
-        axis(1, at = 1:length(metric), label = check_freq*(1:length(metric)))
-        if (abs( (metric_new - metric_prev) / metric_prev) < tol) {
-          cat('\n', 'early stopping at iter', i+1)
+        axis(1,
+             at = 1:length(metric),
+             label = check_freq * (1:length(metric)))
+        if (abs((metric_new - metric_prev) / metric_prev) < tol) {
+          cat('\n', 'early stopping at iter', i + 1)
 
           return(svgd_bnn)
         }

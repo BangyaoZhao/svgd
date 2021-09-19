@@ -20,17 +20,14 @@ SVGD_bayesian_nn_predict <- function(svgd_bnn, X) {
   mean_y_train <- scaling_coef[[3]]
   sd_y_train <- scaling_coef[[4]]
 
-  X <- t(apply(X, 1, function(x) {
-    (x - mean_X_train) / sd_X_train
-  }))
+  X <- t(apply(X, 1, function(x) {(x-mean_X_train)/sd_X_train}))
   output_dim <- num_nodes[length(num_nodes)]
 
   pred_y <- array(0, dim = c(M, output_dim, n))
   for (i in 1:M) {
-    para_list <- unpack_parameters(theta[i,], d, num_nodes)
+    para_list <- unpack_parameters(theta[i, ], d, num_nodes)
     loggamma <- para_list$loggamma
-    pred_y[i, ,] <-
-      forward_probagation(t(X), para_list, 'relu')$ZL * sd_y_train + mean_y_train
+    pred_y[i, , ] <- forward_probagation(t(X), para_list, 'relu')$ZL * sd_y_train + mean_y_train
   }
   pred <- apply(pred_y, c(2, 3), mean)
 

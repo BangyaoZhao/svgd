@@ -41,17 +41,19 @@ development = function(svgd_bnn) {
   }
 
   for (i in 1:M) {
-    para_list <- unpack_parameters(theta[i,], d, num_nodes)
+    para_list <- unpack_parameters(theta[i, ], d, num_nodes)
     pred_y_dev <-
       forward_probagation(t(X_dev), para_list, 'relu')$ZL * sd_y_train + mean_y_train
     lik1 <- f_log_lk(para_list$loggamma)
     loggamma2 <-
-      mean(log(diag(eigenMat)) - log(rowMeans((pred_y_dev - y_dev)^2)))
+      mean(log(diag(eigenMat)) - log(rowMeans((
+        pred_y_dev - y_dev
+      ) ^ 2)))
     lik2 <- f_log_lk(loggamma2)
 
     if (lik2 > lik1) {
       para_list$loggamma <- loggamma2
-      theta[i,] <- pack_parameters(para_list)
+      theta[i, ] <- pack_parameters(para_list)
     }
   }
   svgd_bnn$theta = theta

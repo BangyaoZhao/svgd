@@ -197,11 +197,11 @@ gradient <-
 
     loggamma <- parameters$loggamma
     d_loggamma <-
-      N * output_dim / 2 - exp(loggamma) / 2 * sum((ZL - y_batch) ^ 2 * diag(eigenMat_inv)) * N / N0 + a0 - b0 * exp(loggamma)
+      N * output_dim / 2 - exp(loggamma) / 2 * sum((ZL - y_batch) ^ 2 * diag(eigenMat_inv)) * N / N0 + a0[1] - b0[1] * exp(loggamma)
 
     loglambda <- parameters$loglambda
     d_loglambda <-
-      (num_vars - 2) / 2 - exp(loglambda) * sum_of_square / 2 + a0 - b0 * exp(loglambda)
+      (num_vars - 2) / 2 - exp(loglambda) * sum_of_square / 2 + a0[2] - b0[2] * exp(loglambda)
 
     grads <- list()
     for (l in 1:L) {
@@ -379,7 +379,7 @@ initialization <- function(d, num_nodes, a0, b0) {
     }
 
   }
-  para_list$loggamma = log(rgamma(1, shape = a0, scale = b0))
-  para_list$loglambda = log(rgamma(1, shape = a0, scale = b0))
+  para_list$loggamma = log(rgamma(1, shape = a0[1], scale = b0[1]))
+  para_list$loglambda = log(rgamma(1, shape = a0[2], scale = b0[2]))
   return(para_list)
 }

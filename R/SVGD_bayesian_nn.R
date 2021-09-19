@@ -38,8 +38,8 @@ SVGD_bayesian_nn <-
            dev_split = 0.1,
            M = 20,
            num_nodes = c(ncol(X_train), ncol(y_train)),
-           a0 = 1,
-           b0 = 0.1,
+           a0 = c(1, 1),
+           b0 = c(0.1, 0.1),
            initial_values = FALSE) {
     n_layers <- length(num_nodes) + 1
     d <- ncol(X_train)
